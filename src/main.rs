@@ -2,7 +2,7 @@ use crossterm::terminal::ClearType;
 use crossterm::{event::*, cursor};
 use crossterm::{event, execute, queue, terminal};
 use std::path::Path;
-use std::{cmp, env, fs, io};
+use std::{cmp, env, fs};
 use std::io::{ErrorKind, Result, stdout, Write};
 use std::time::Duration;
 
@@ -49,7 +49,7 @@ impl Editor {
         }
     }
 
-    fn process_key_press(&mut self) -> crossterm::Result<bool> {
+    fn key_press(&mut self) -> crossterm::Result<bool> {
         match self.reader.read_key()? {
             KeyEvent {
                 code: KeyCode::Char('z'),
@@ -76,14 +76,14 @@ impl Editor {
                     KeyCode::Down
                 });
             }),
-            _ => {}
+            _ => unimplemented!()
         }
         Ok(true)
     }
 
     fn run(&mut self) -> crossterm::Result<bool> {
         self.output.refresh_screen()?;
-        self.process_key_press()
+        self.key_press()
     }
 }
 
@@ -91,17 +91,19 @@ impl Editor {
 struct Output {
     win_size: (usize, usize),
     editor_contents: EditorContents,
+    editor_rows: EditorRows,
     cursor_controller: CursorController,
 }
 
 impl Output {
     fn new() -> Self {
-        let win_size = terminal::size()
+        let win_size: (usize, usize) = terminal::size()
             .map(|(x, y)| (x as usize, y as usize))
             .unwrap();
         Self {
             win_size,
             editor_contents: EditorContents::new(),
+            editor_rows: EditorRows::new(),
             cursor_controller: CursorController::new(win_size),
         }
     }
@@ -112,12 +114,12 @@ impl Output {
     }
 
     fn draw_rows(&mut self) {
-        let screen_rows = self.win_size.1;
-        let screen_columns = self.win_size.0;
+        let screen_rows: usize = self.win_size.1;
+        let screen_columns: usize = self.win_size.0;
         for i in 0..screen_rows {
             let file_row = i + self.cursor_controller.row_offset;
             if file_row >= self.editor_rows.number_of_rows() {
-                if self.editor_rows.number_of_rows == 0 && i == screen_rows / 3 {
+                if self.editor_rows.number_of_rows() == 0 && i == screen_rows / 3 {
                     let mut welcome = format!("Buka editor - VERSION: {}", VERSION);
                     if welcome.len() > screen_columns {
                         welcome.truncate(screen_columns);
@@ -280,7 +282,6 @@ impl EditorRows {
                 row_contents: Vec::new(),
             },
             Some(file) => Self::from_file(file.as_ref()),
-            _ => unimplemented!()
         }
     }
 
