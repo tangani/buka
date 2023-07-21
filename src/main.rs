@@ -1,8 +1,9 @@
 use crossterm::terminal::ClearType;
 use crossterm::{event::*, cursor};
 use crossterm::{event, execute, queue, terminal};
+use std::io;
 use std::path::Path;
-use std::{cmp, env, fs};
+use std::{cmp, env, fs, result};
 use std::io::{ErrorKind, Result, stdout, Write};
 use std::time::Duration;
 
@@ -194,7 +195,7 @@ impl EditorContents {
 }
 
 
-impl Write for EditorContents {
+impl io::Write for EditorContents {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         match std::str::from_utf8(buf) {
             Ok(s) => {
@@ -206,7 +207,7 @@ impl Write for EditorContents {
     }
 
     fn flush(&mut self) -> Result<()> {
-        let out = write!(stdout(), "{}", self.content);
+        let out: result::Result<(), io::Error> = write!(stdout(), "{}", self.content);
         stdout().flush()?;
         self.content.clear();
         out
@@ -220,6 +221,7 @@ struct CursorController {
     screen_columns: usize,
     screen_rows: usize,
     row_offset: usize,
+    // columns_offset: usize,
 }
 
 
@@ -231,29 +233,37 @@ impl  CursorController {
             screen_columns: win_size.0,
             screen_rows: win_size.1,
             row_offset: 0,
+            // columns_offset: 0,
         }
     }
 
     fn move_cursor(&mut self, direction: KeyCode, number_of_rows: usize) {
         match direction {
-            KeyCode::Up => self.cursor_y = self.cursor_y.saturating_sub(1),
+            KeyCode::Up => {
+                // self.cursor_y = self.cursor_y.saturating_sub(1)
+                if self.cursor_y != 0 {
+                    self.cursor_y -= 1;
+                }
+            }
             KeyCode::Left => {
                 if self.cursor_x != 0 {
                     self.cursor_x -= 1;
                 }
-            },
+            }
             KeyCode::Down => {
                 if self.cursor_y != number_of_rows {
                     self.cursor_y += 1;
                 }
-            },
+            }
             KeyCode::Right => {
                 if self.cursor_x != self.screen_columns -1 {
                     self.cursor_x += 1;
                 }
-            },
+            }
             KeyCode::End => self.cursor_x = self.screen_columns - 1,
             KeyCode::Home => self.cursor_x = 0,
+            KeyCode::PageUp => self.cursor_y = 0,
+            KeyCode::PageDown => self.cursor_y = self.screen_rows - 1,
             _ => unimplemented!(),
         }
     }
